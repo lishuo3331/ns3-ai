@@ -122,7 +122,7 @@ Run Python code:
 ```
 cd contrib/ns3-ai/example/rl-tcp/
 
-python run_tcp_rl.py --use_rl --result
+python run_rl_tcp.py --use_rl --result
 ```
 
 **NOTICE: ns3 code and Python code need to run simultaneously**
