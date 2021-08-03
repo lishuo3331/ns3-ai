@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import MultivariateNormal
 from torch.distributions import Categorical
-
+import numpy as np
 
 
 ################################## set device ##################################
@@ -202,7 +202,8 @@ class PPO:
             with torch.no_grad():
                 state = torch.FloatTensor(state).to(device)
                 action, action_logprob = self.policy_old.act(state)
-
+                
+            aciton = np.clip(action,-1,1)
             self.buffer.states.append(state)
             self.buffer.actions.append(action)
             self.buffer.logprobs.append(action_logprob)
@@ -275,12 +276,12 @@ class PPO:
     
     
     def save(self, checkpoint_path):
-        torch.save(self.policy_old.state_dict(), checkpoint_path)
+        torch.save(self.policy_old.state_dict(), checkpoint_path+'checkpoint.pt')
    
 
     def load(self, checkpoint_path):
-        self.policy_old.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
-        self.policy.load_state_dict(torch.load(checkpoint_path, map_location=lambda storage, loc: storage))
+        self.policy_old.load_state_dict(torch.load(checkpoint_path+'checkpoint.pt', map_location=lambda storage, loc: storage))
+        self.policy.load_state_dict(torch.load(checkpoint_path+'checkpoint.pt', map_location=lambda storage, loc: storage))
         
         
        

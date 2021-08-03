@@ -45,7 +45,7 @@ stateDim = 5
 actionDim = 1
 
 actionMin = 1460
-actionMax = 16*1024
+actionMax = 8*16*1024
 
 class TcpRlEnv(Structure):
     _pack_ = 1
@@ -64,6 +64,7 @@ class TcpRlEnv(Structure):
         ('rtt', c_double), # 延时
         ('lossRate', c_uint64), # 丢包率乘以pacingRate
         ('rttGradient', c_double), # 延时
+        ('newSimultionTime',c_double),
         # ('use123',c_double)
     ]
 
@@ -154,6 +155,10 @@ if args.use_rl:
 exp = Experiment(1234, memorysize, 'rl-tcp', '../../')
 exp.run(show_output=0)
 reward_list = []
+train_index = 0
+SimultionTime = 0
+reward_sum = 0
+# plt.ion() #维持画图窗口
 try:
     while not var.isFinish():
         with var as data:
@@ -169,6 +174,10 @@ try:
             rtt = data.env.rtt
             lossRate = data.env.lossRate
             rttGradient = data.env.rttGradient
+            # newSimultionTime = data.env.newSimultionTime
+            # if newSimultionTime == SimultionTime:
+                # break
+            # SimultionTime = newSimultionTime
     #         print(ssThresh, cWnd, segmentsAcked, segmentSize, bytesInFlight)
 
             if args.result:
@@ -204,7 +213,9 @@ try:
                 action = agent.choose_action(s)
                 # action = get_action(action)
                 action = ou_noise.get_action(action)[0]
-                print("action",action)
+
+                # print("action",action)
+
                 new_cWnd = int((action + 1.0) * float(actionMax - actionMin) / 2.0)
                 new_ssThresh = ssThresh
                 #
@@ -221,6 +232,8 @@ try:
                 #     new_ssThresh = int(bytesInFlight / 2)
                 data.act.new_cWnd = new_cWnd
                 data.act.new_ssThresh = new_ssThresh
+                # if done 
+
                 ssThresh = data.env.ssThresh
                 cWnd = data.env.cWnd
                 segmentsAcked = data.env.segmentsAcked
@@ -230,13 +243,23 @@ try:
                 rtt = data.env.rtt
                 lossRate = data.env.lossRate
                 rttGradient = data.env.rttGradient
-                
+                newSimultionTime = data.env.newSimultionTime
 
                 # modify the reward
                 # r = 0.7 * segmentsAcked - 1.2 * bytesInFlight - 0.5 * cWnd  
                 # r = 0.8 * math.log(pacingRate) - math.log(pacingRate) * 500 * math.log(rtt)
                 r = 0.8 * pacingRate/(1024*1024)  -   pacingRate  * rttGradient/(1024*1024)   -  0.5 * lossRate/(1024*1024)
-                reward_list.append(r)
+                if train_index%1000 == 0 :
+                    # plt.cla()
+                    # plt.plot(reward_list)
+                    # plt.pause(0.005)         # 暂停一秒
+                    # plt.ioff()
+                    # plt.show()
+                    print('eposide: ',train_index,' reward: ',reward_sum)
+                    reward_list.append(reward_sum)
+                    reward_sum = 0
+                train_index += 1
+                reward_sum += r
                 # r = - 500 * math.log(rtt)
 
                 # s_ = [ssThresh, cWnd, segmentsAcked,
@@ -245,8 +268,9 @@ try:
                 s_ = [bytesInFlight/(1024*1024),pacingRate/(1024*1024),rtt,lossRate/(1024*1024),rttGradient]
                 # Q table 更新
                 #def update(self, state, action, reward, next_state, done):
-                print("s",s)
-                print("s_",s_)
+                
+                # print("s",s)
+                # print("s_",s_)
                 
                 agent.memory.push(s,[action],r,s_,1)
                 agent.update()
@@ -257,7 +281,8 @@ try:
 except KeyboardInterrupt:
     exp.kill()
     del exp
-
+# plt.ioff()
+# plt.show()
 if args.result:
     for res in res_list:
         y = globals()[res]
